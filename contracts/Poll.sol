@@ -7,12 +7,18 @@ contract PollContract {
         CLOSED
     }
 
+    struct Option {
+        uint256 optionNumber;
+        string name;
+    }
+
     struct Vote {
-        string optionVoted;
+        Option[] optionsVoted;
         address voter;
     }
 
     struct Poll {
+        uint256 id;
         string name;
         string description;
         uint256 createdAt;
