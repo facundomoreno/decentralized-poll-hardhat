@@ -36,7 +36,8 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
                   const newPoll1 = [
                       "Quien ganara gran hermano?",
                       "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-                      false,
+                      true,
+                      true,
                       threeDaysFromNow,
                       ["Alan", "Martin", "Joan"]
                   ]
@@ -44,7 +45,8 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
                   const newPoll2 = [
                       "Va a llover mañana en la ciudad?",
                       "LLLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-                      false,
+                      true,
+                      true,
                       threeDaysFromNow,
                       ["Si", "No"]
                   ]
@@ -76,7 +78,8 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
                   const newPoll1 = [
                       "Quien ganara gran hermano?",
                       "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-                      false,
+                      true,
+                      true,
                       threeDaysFromNow,
                       ["Alan"]
                   ]
@@ -97,7 +100,8 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
                   const newPoll1 = [
                       "Quien ganara gran hermano?",
                       "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-                      false,
+                      true,
+                      true,
                       breakingClosesAt,
                       ["Alan", "Juan"]
                   ]
@@ -107,7 +111,7 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
                   )
               })
           })
-          describe("Vote", async () => {
+          describe("Vote with multiple options disabled", async () => {
               beforeEach(async () => {
                   const now = new Date()
 
@@ -116,13 +120,14 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
                       "Quien ganara gran hermano?",
                       "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
                       false,
+                      true,
                       threeDaysFromNow,
                       ["Alan", "Martin", "Joan"]
                   ]
                   await pollContract.createPoll(...newPoll1)
               })
               it("add new vote to poll, updating the option number of votes", async () => {
-                  await pollContract.votePoll(0, [0, 2])
+                  await pollContract.votePoll(0, [0])
 
                   const voteResult = await pollContract.getMyVoteInPoll(0)
 
@@ -133,15 +138,61 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
 
                   const firstPollOptions = await pollContract.getPollOptions(0)
 
-                  assert.equal(firstPollOptions[0].numberOfVotes, firstPollOptions[2].numberOfVotes, 1)
-                  assert.equal(firstPollOptions[1].numberOfVotes, 0)
+                  assert.equal(firstPollOptions[0].numberOfVotes, 1)
+                  assert.equal(firstPollOptions[1].numberOfVotes, firstPollOptions[2].numberOfVotes, 0)
               })
               it("fails if you already vote in the poll", async () => {
                   // first valid vote
-                  await pollContract.votePoll(0, [0, 2])
+                  await pollContract.votePoll(0, [2])
 
                   // second vote that should fail
                   await expect(pollContract.votePoll(0, [1])).to.be.rejectedWith("PollContract_AlreadyVotedInPoll")
+              })
+              it("fails if you vote with wrong amount of options", async () => {
+                  await expect(pollContract.votePoll(0, [])).to.be.rejectedWith(
+                      "PollContract_WrongAmountOfOptionsProvided"
+                  )
+                  await expect(pollContract.votePoll(0, [0, 1])).to.be.rejectedWith(
+                      "PollContract_WrongAmountOfOptionsProvided"
+                  )
+              })
+              it("fails if you vote after the poll closed", async () => {
+                  await network.provider.send("evm_increaseTime", [60 * 60 * 24 * 4]) // increase 4 days
+                  await network.provider.send("evm_mine", [])
+
+                  await expect(pollContract.votePoll(0, [0])).to.be.rejectedWith("PollContract_PollIsClosed")
+              })
+          })
+
+          describe("Vote with multiple options allowed", () => {
+              beforeEach(async () => {
+                  const now = new Date()
+
+                  const threeDaysFromNow = Math.floor(new Date(now.setDate(now.getDate() + 3)).getTime() / 1000)
+                  const newPoll1 = [
+                      "Quien ganara gran hermano?",
+                      "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+                      true,
+                      true,
+                      threeDaysFromNow,
+                      ["Alan", "Martin", "Joan"]
+                  ]
+                  await pollContract.createPoll(...newPoll1)
+              })
+              it("add new vote to poll, updating the option number of votes", async () => {
+                  await pollContract.votePoll(0, [0, 1])
+
+                  const voteResult = await pollContract.getMyVoteInPoll(0)
+
+                  const pollResult = await pollContract.getPollById(0)
+
+                  assert.equal(voteResult.voter, deployer.address)
+                  assert.equal(pollResult.votes.length, 1)
+
+                  const firstPollOptions = await pollContract.getPollOptions(0)
+
+                  assert.equal(firstPollOptions[0].numberOfVotes, firstPollOptions[1].numberOfVotes, 1)
+                  assert.equal(firstPollOptions[2].numberOfVotes, 0)
               })
           })
       })

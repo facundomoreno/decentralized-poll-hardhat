@@ -4,6 +4,8 @@ pragma solidity >=0.8.2 <0.9.0;
 error PollContract_NotEnoughOptionsProvided();
 error PollContract_NeededBiggerClosesAtDate(uint256 receivedTime, uint256 blockTimestamp);
 error PollContract_AlreadyVotedInPoll();
+error PollContract_PollIsClosed();
+error PollContract_WrongAmountOfOptionsProvided();
 
 contract PollContract {
     enum PollStatus {
@@ -29,20 +31,25 @@ contract PollContract {
         string name;
         string description;
         bool allowMultipleOptionsSelected;
+        bool allowMultipleWinnerOptions;
         uint256 createdAt;
         uint256 closesAt;
         address creator;
         uint256 numberOfOptions;
         PollStatus status;
         Vote[] votes;
+        Option[] pollWinnerOptions;
     }
 
-    uint256 public pollsCount;
+    uint256 private pollsCount;
+    // poll id and then the poll
     mapping(uint256 => Poll) private polls;
     //address is the voter and uint256 for the pollId
     mapping(address => mapping(uint256 => Vote)) private globalVotesByAddress;
     // poll id and then option id
-    mapping(uint256 => mapping(uint256 => Option)) pollOptions;
+    mapping(uint256 => mapping(uint256 => Option)) private pollOptions;
+    // poll id and then the winner options
+    mapping(uint256 => Option[]) private winnerOptions;
 
     constructor() {}
 
@@ -50,6 +57,7 @@ contract PollContract {
         string memory _name,
         string memory _description,
         bool _allowMultipleOptionsSelected,
+        bool _allowMultipleWinnerOptions,
         uint256 _closesAt,
         string[] memory _options
     ) external payable {
@@ -68,6 +76,7 @@ contract PollContract {
         newPoll.name = _name;
         newPoll.description = _description;
         newPoll.allowMultipleOptionsSelected = _allowMultipleOptionsSelected;
+        newPoll.allowMultipleWinnerOptions = _allowMultipleWinnerOptions;
         newPoll.createdAt = aproxCurrentTime;
         newPoll.closesAt = _closesAt;
         newPoll.creator = msg.sender;
@@ -85,9 +94,22 @@ contract PollContract {
 
     function votePoll(uint256 _pollId, uint256[] memory optionsVotedIds) external payable {
         // checking that sender did not already vote in poll
-        address testAddress = globalVotesByAddress[msg.sender][_pollId].voter;
-        if (testAddress != address(0)) {
+
+        Poll storage poll = polls[_pollId];
+        address addressForCheck = globalVotesByAddress[msg.sender][_pollId].voter;
+
+        if (addressForCheck != address(0)) {
             revert PollContract_AlreadyVotedInPoll();
+        }
+
+        if (poll.status == PollStatus.CLOSED || poll.closesAt < block.timestamp) {
+            revert PollContract_PollIsClosed();
+        }
+
+        if (
+            ((poll.allowMultipleOptionsSelected == false) && optionsVotedIds.length > 1) || (optionsVotedIds.length < 1)
+        ) {
+            revert PollContract_WrongAmountOfOptionsProvided();
         }
 
         Vote storage newVote = globalVotesByAddress[msg.sender][_pollId];
@@ -101,7 +123,39 @@ contract PollContract {
         newVote.pollId = _pollId;
         newVote.voter = msg.sender;
 
-        polls[_pollId].votes.push(newVote);
+        poll.votes.push(newVote);
+    }
+
+    function closeExpiredPollsAndDetermineWinner() external {
+        for (uint256 i = 0; i < pollsCount; i++) {
+            if (polls[i].status == PollStatus.OPEN && polls[i].closesAt < block.timestamp) {
+                polls[i].status = PollStatus.CLOSED;
+
+                // Determine winner
+
+                Option[] memory mOptions = getPollOptions(i);
+
+                uint256 maxVotes = 0;
+
+                for (uint256 y = 0; y < mOptions.length; y++) {
+                    if (mOptions[y].numberOfVotes > maxVotes) {
+                        maxVotes = mOptions[y].numberOfVotes;
+                    }
+                }
+
+                for (uint256 y = 0; y < mOptions.length; y++) {
+                    if (mOptions[y].numberOfVotes == maxVotes) {
+                        winnerOptions[i].push(mOptions[y]);
+                    }
+                }
+
+                if (polls[i].allowMultipleWinnerOptions) {
+                    polls[i].pollWinnerOptions = winnerOptions[i];
+                } else {
+                    // vrf coordinator
+                }
+            }
+        }
     }
 
     function getPolls() public view returns (Poll[] memory) {
