@@ -30,7 +30,9 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
                   let pollsCount
                   const now = new Date()
 
-                  const threeDaysFromNow = new Date(now.setDate(now.getDate() + 3)).getTime()
+                  // working with unix timestamp.  Normal date = new Date(unixT * 1000)
+
+                  const threeDaysFromNow = Math.floor(new Date(now.setDate(now.getDate() + 3)).getTime() / 1000)
                   const newPoll1 = [
                       "Quien ganara gran hermano?",
                       "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
@@ -70,7 +72,7 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
                   let pollsCount
                   const now = new Date()
 
-                  const threeDaysFromNow = new Date(now.setDate(now.getDate() + 3)).getTime()
+                  const threeDaysFromNow = Math.floor(new Date(now.setDate(now.getDate() + 3)).getTime() / 1000)
                   const newPoll1 = [
                       "Quien ganara gran hermano?",
                       "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
@@ -109,7 +111,7 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
               beforeEach(async () => {
                   const now = new Date()
 
-                  const threeDaysFromNow = new Date(now.setDate(now.getDate() + 3)).getTime()
+                  const threeDaysFromNow = Math.floor(new Date(now.setDate(now.getDate() + 3)).getTime() / 1000)
                   const newPoll1 = [
                       "Quien ganara gran hermano?",
                       "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
