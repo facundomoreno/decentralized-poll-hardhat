@@ -7,6 +7,7 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
     : describe("PollContract unit tests", () => {
           let pollContract: any
           let deployer: any
+          let pollAddress: string
 
           beforeEach(async () => {
               const [deployerResult] = await ethers.getSigners()
@@ -18,7 +19,7 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
 
               // get addresses of deployments
 
-              const pollAddress = (await deployments.get("PollContract")).address
+              pollAddress = (await deployments.get("PollContract")).address
 
               // get the ethers connection to the contract by each address
 
@@ -37,7 +38,6 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
                       "Quien ganara gran hermano?",
                       "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
                       true,
-                      true,
                       threeDaysFromNow,
                       ["Alan", "Martin", "Joan"]
                   ]
@@ -45,7 +45,6 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
                   const newPoll2 = [
                       "Va a llover mañana en la ciudad?",
                       "LLLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-                      true,
                       true,
                       threeDaysFromNow,
                       ["Si", "No"]
@@ -79,7 +78,6 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
                       "Quien ganara gran hermano?",
                       "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
                       true,
-                      true,
                       threeDaysFromNow,
                       ["Alan"]
                   ]
@@ -101,7 +99,7 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
                       "Quien ganara gran hermano?",
                       "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
                       true,
-                      true,
+
                       breakingClosesAt,
                       ["Alan", "Juan"]
                   ]
@@ -120,7 +118,6 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
                       "Quien ganara gran hermano?",
                       "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
                       false,
-                      true,
                       threeDaysFromNow,
                       ["Alan", "Martin", "Joan"]
                   ]
@@ -157,8 +154,10 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
                   )
               })
               it("fails if you vote after the poll closed", async () => {
-                  await network.provider.send("evm_increaseTime", [60 * 60 * 24 * 4]) // increase 4 days
+                  await network.provider.send("evm_increaseTime", [60 * 60 * 24 * 3 + 30]) // increase 3 days and 30 seconds
                   await network.provider.send("evm_mine", [])
+
+                  //   await pollContract.closeExpiredPollsAndDetermineWinnerOptions()
 
                   await expect(pollContract.votePoll(0, [0])).to.be.rejectedWith("PollContract_PollIsClosed")
               })
@@ -172,7 +171,6 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
                   const newPoll1 = [
                       "Quien ganara gran hermano?",
                       "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-                      true,
                       true,
                       threeDaysFromNow,
                       ["Alan", "Martin", "Joan"]
@@ -195,4 +193,50 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
                   assert.equal(firstPollOptions[2].numberOfVotes, 0)
               })
           })
+
+          //   describe("Close expired polls", () => {
+          //       beforeEach(async () => {
+          //           const now = new Date()
+
+          //           const threeDaysFromNow = Math.floor(new Date(now.setDate(now.getDate() + 3)).getTime() / 1000)
+          //           const newPoll1 = [
+          //               "Quien ganara gran hermano?",
+          //               "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+          //               true,
+          //               threeDaysFromNow,
+          //               ["Alan", "Martin", "Joan"]
+          //           ]
+          //           await pollContract.createPoll(...newPoll1)
+          //       })
+
+          //       it("closes the poll correctly and add the poll winners", async () => {
+          //           const signers = await ethers.getSigners()
+
+          //           const pollBefore = await pollContract.getPollById(0)
+          //           assert.equal(pollBefore.status, 0)
+
+          //           await pollContract.votePoll(0, [0, 1])
+
+          //           const pollContractConnectedToOtherAccount = (
+          //               await ethers.getContractAt("PollContract", pollAddress)
+          //           ).connect(signers[1])
+
+          //           pollContractConnectedToOtherAccount.votePoll(0, [0, 1])
+
+          //           await expect(pollContract.getPollWinnerOptions(0)).to.be.rejectedWith("PollContract_PollIsOpen")
+
+          //           await network.provider.send("evm_increaseTime", [60 * 60 * 24 * 3 + 30]) // increase 3 days and 5 seconds
+          //           await network.provider.send("evm_mine", [])
+
+          //           //   await pollContract.closeExpiredPollsAndDetermineWinnerOptions()
+
+          //           const pollAfter = await pollContract.getPollById(0)
+          //           assert.equal(pollAfter.status, 1)
+
+          //           const pollWinnerOptions = await pollContract.getPollWinnerOptions(0)
+
+          //           assert.equal(pollWinnerOptions.length, 2)
+          //           assert.equal(pollWinnerOptions[0].numberOfVotes, pollWinnerOptions[1].numberOfVotes, 2)
+          //       })
+          //   })
       })

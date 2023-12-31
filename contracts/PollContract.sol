@@ -5,13 +5,14 @@ error PollContract_NotEnoughOptionsProvided();
 error PollContract_NeededBiggerClosesAtDate(uint256 receivedTime, uint256 blockTimestamp);
 error PollContract_AlreadyVotedInPoll();
 error PollContract_PollIsClosed();
+error PollContract_PollIsOpen();
 error PollContract_WrongAmountOfOptionsProvided();
 
 contract PollContract {
-    enum PollStatus {
-        OPEN,
-        CLOSED
-    }
+    // enum PollStatus {
+    //     OPEN,
+    //     CLOSED
+    // }
 
     struct Option {
         uint256 optionId;
@@ -31,14 +32,12 @@ contract PollContract {
         string name;
         string description;
         bool allowMultipleOptionsSelected;
-        bool allowMultipleWinnerOptions;
         uint256 createdAt;
         uint256 closesAt;
         address creator;
         uint256 numberOfOptions;
-        PollStatus status;
+        // PollStatus status;
         Vote[] votes;
-        Option[] pollWinnerOptions;
     }
 
     uint256 private pollsCount;
@@ -48,8 +47,9 @@ contract PollContract {
     mapping(address => mapping(uint256 => Vote)) private globalVotesByAddress;
     // poll id and then option id
     mapping(uint256 => mapping(uint256 => Option)) private pollOptions;
+
     // poll id and then the winner options
-    mapping(uint256 => Option[]) private winnerOptions;
+    // mapping(uint256 => Option[]) private winnerOptions;
 
     constructor() {}
 
@@ -57,7 +57,6 @@ contract PollContract {
         string memory _name,
         string memory _description,
         bool _allowMultipleOptionsSelected,
-        bool _allowMultipleWinnerOptions,
         uint256 _closesAt,
         string[] memory _options
     ) external payable {
@@ -76,11 +75,10 @@ contract PollContract {
         newPoll.name = _name;
         newPoll.description = _description;
         newPoll.allowMultipleOptionsSelected = _allowMultipleOptionsSelected;
-        newPoll.allowMultipleWinnerOptions = _allowMultipleWinnerOptions;
         newPoll.createdAt = aproxCurrentTime;
         newPoll.closesAt = _closesAt;
         newPoll.creator = msg.sender;
-        newPoll.status = PollStatus.OPEN;
+        // newPoll.status = PollStatus.OPEN;
 
         newPoll.numberOfOptions = 0;
 
@@ -92,7 +90,7 @@ contract PollContract {
         pollsCount++;
     }
 
-    function votePoll(uint256 _pollId, uint256[] memory optionsVotedIds) external payable {
+    function votePoll(uint256 _pollId, uint256[] calldata optionsVotedIds) external payable {
         // checking that sender did not already vote in poll
 
         Poll storage poll = polls[_pollId];
@@ -102,7 +100,7 @@ contract PollContract {
             revert PollContract_AlreadyVotedInPoll();
         }
 
-        if (poll.status == PollStatus.CLOSED || poll.closesAt < block.timestamp) {
+        if (/* poll.status == PollStatus.CLOSED || */ poll.closesAt < block.timestamp) {
             revert PollContract_PollIsClosed();
         }
 
@@ -126,37 +124,31 @@ contract PollContract {
         poll.votes.push(newVote);
     }
 
-    function closeExpiredPollsAndDetermineWinner() external {
-        for (uint256 i = 0; i < pollsCount; i++) {
-            if (polls[i].status == PollStatus.OPEN && polls[i].closesAt < block.timestamp) {
-                polls[i].status = PollStatus.CLOSED;
+    // function closeExpiredPollsAndDetermineWinnerOptions() external payable {
+    //     for (uint256 i = 0; i < pollsCount; i++) {
+    //         if (polls[i].status == PollStatus.OPEN && polls[i].closesAt < block.timestamp) {
+    //             polls[i].status = PollStatus.CLOSED;
 
-                // Determine winner
+    //             // Determine winner
 
-                Option[] memory mOptions = getPollOptions(i);
+    //             Option[] memory mOptions = getPollOptions(i);
 
-                uint256 maxVotes = 0;
+    //             uint256 maxVotes = 0;
 
-                for (uint256 y = 0; y < mOptions.length; y++) {
-                    if (mOptions[y].numberOfVotes > maxVotes) {
-                        maxVotes = mOptions[y].numberOfVotes;
-                    }
-                }
+    //             for (uint256 y = 0; y < mOptions.length; y++) {
+    //                 if (mOptions[y].numberOfVotes > maxVotes) {
+    //                     maxVotes = mOptions[y].numberOfVotes;
+    //                 }
+    //             }
 
-                for (uint256 y = 0; y < mOptions.length; y++) {
-                    if (mOptions[y].numberOfVotes == maxVotes) {
-                        winnerOptions[i].push(mOptions[y]);
-                    }
-                }
-
-                if (polls[i].allowMultipleWinnerOptions) {
-                    polls[i].pollWinnerOptions = winnerOptions[i];
-                } else {
-                    // vrf coordinator
-                }
-            }
-        }
-    }
+    //             for (uint256 y = 0; y < mOptions.length; y++) {
+    //                 if (mOptions[y].numberOfVotes == maxVotes) {
+    //                     winnerOptions[i].push(mOptions[y]);
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 
     function getPolls() public view returns (Poll[] memory) {
         Poll[] memory mPolls = new Poll[](pollsCount);
@@ -176,11 +168,9 @@ contract PollContract {
     }
 
     function getPollOptions(uint256 _pollId) public view returns (Option[] memory) {
-        Poll memory pollToRevise = getPollById(_pollId);
+        Option[] memory mOptions = new Option[](polls[_pollId].numberOfOptions);
 
-        Option[] memory mOptions = new Option[](pollToRevise.numberOfOptions);
-
-        for (uint256 i = 0; i < pollToRevise.numberOfOptions; i++) {
+        for (uint256 i = 0; i < polls[_pollId].numberOfOptions; i++) {
             Option storage sOption = pollOptions[_pollId][i];
             mOptions[i] = sOption;
         }
@@ -191,4 +181,13 @@ contract PollContract {
     function getMyVoteInPoll(uint256 _pollId) public view returns (Vote memory) {
         return globalVotesByAddress[msg.sender][_pollId];
     }
+
+    // function getPollWinnerOptions(uint256 _pollId) public view returns (Option[] memory) {
+    //     Poll memory poll = polls[_pollId];
+    //     if (poll.status == PollStatus.OPEN || poll.closesAt > block.timestamp) {
+    //         revert PollContract_PollIsOpen();
+    //     }
+
+    //     return winnerOptions[_pollId];
+    // }
 }
