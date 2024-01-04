@@ -17,6 +17,7 @@ contract PollContract {
     }
 
     struct Vote {
+        uint256 voteId;
         uint256 pollId;
         address voter;
         Option[] optionsVoted;
@@ -31,16 +32,22 @@ contract PollContract {
         uint256 closesAt;
         address creator;
         uint256 numberOfOptions;
-        Vote[] votes;
     }
 
+    event PollCreated(Poll pollCreated);
+    event NewVoteInPoll(Vote newVote);
+
     uint256 private pollsCount;
-    // poll id and then the poll
+    // poll id
     mapping(uint256 => Poll) private polls;
-    //address is the voter and uint256 for the pollId
+    //address (voter) => pollId
     mapping(address => mapping(uint256 => Vote)) private globalVotesByAddress;
-    // poll id and then option id
+    // poll id => option id
     mapping(uint256 => mapping(uint256 => Option)) private pollOptions;
+    // poll id => voteId
+    mapping(uint256 => mapping(uint256 => Vote)) private pollVotes;
+    // poll id
+    mapping(uint256 => uint256) amountOfVotesInPoll;
 
     constructor() {}
 
@@ -78,6 +85,8 @@ contract PollContract {
         }
 
         pollsCount++;
+
+        emit PollCreated(newPoll);
     }
 
     function votePoll(uint256 _pollId, uint256[] calldata optionsVotedIds) external payable {
@@ -111,7 +120,11 @@ contract PollContract {
         newVote.pollId = _pollId;
         newVote.voter = msg.sender;
 
-        poll.votes.push(newVote);
+        pollVotes[_pollId][amountOfVotesInPoll[_pollId]] = newVote;
+
+        amountOfVotesInPoll[_pollId]++;
+
+        emit NewVoteInPoll(newVote);
     }
 
     function getPolls() public view returns (Poll[] memory) {
@@ -120,29 +133,36 @@ contract PollContract {
             Poll storage sPoll = polls[i];
             mPolls[i] = sPoll;
         }
+
         return mPolls;
     }
 
-    function getPollById(uint256 _pollId) public view returns (Poll memory) {
-        return polls[_pollId];
+    function getPollById(uint256 _pollId) public view returns (Poll memory, Option[] memory, uint256) {
+        Option[] memory mOptions = new Option[](polls[_pollId].numberOfOptions);
+
+        uint256 votesCount = amountOfVotesInPoll[_pollId];
+
+        for (uint256 i = 0; i < polls[_pollId].numberOfOptions; i++) {
+            Option storage sOption = pollOptions[_pollId][i];
+            mOptions[i] = sOption;
+        }
+        return (polls[_pollId], mOptions, votesCount);
     }
 
     function getPollsCount() public view returns (uint256) {
         return pollsCount;
     }
 
-    function getPollOptions(uint256 _pollId) public view returns (Option[] memory) {
-        Option[] memory mOptions = new Option[](polls[_pollId].numberOfOptions);
-
-        for (uint256 i = 0; i < polls[_pollId].numberOfOptions; i++) {
-            Option storage sOption = pollOptions[_pollId][i];
-            mOptions[i] = sOption;
-        }
-
-        return mOptions;
-    }
-
     function getMyVoteInPoll(uint256 _pollId) public view returns (Vote memory) {
         return globalVotesByAddress[msg.sender][_pollId];
+    }
+
+    function getPollVotes(uint256 _pollId) public view returns (Vote[] memory) {
+        uint256 votesCount = amountOfVotesInPoll[_pollId];
+        Vote[] memory mVotes = new Vote[](votesCount);
+        for (uint256 i = 0; i < votesCount; i++) {
+            mVotes[i] = pollVotes[_pollId][i];
+        }
+        return mVotes;
     }
 }

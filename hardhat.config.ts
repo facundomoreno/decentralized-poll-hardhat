@@ -18,6 +18,11 @@ const config: HardhatUserConfig = {
             }
         }
     },
+    etherscan: {
+        apiKey: {
+            sepolia: "K28VG6375TK92PKXEAW5Y7JBMUFYBSYSJE"
+        }
+    },
     networks: {
         sepolia: {
             url: SEPOLIA_RPC_URL,

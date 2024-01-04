@@ -60,11 +60,11 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
 
                   assert.equal(pollsCount, 2, polls.length)
 
-                  const pollOptionsOfFirst = await pollContract.getPollOptions(0)
+                  const pollOptionsOfFirst = (await pollContract.getPollById(0))[1]
 
                   assert.equal(pollOptionsOfFirst.length, 3)
 
-                  const pollOptionsOfSecond = await pollContract.getPollOptions(1)
+                  const pollOptionsOfSecond = (await pollContract.getPollById(1))[1]
 
                   assert.equal(pollOptionsOfSecond.length, 2)
               })
@@ -126,14 +126,16 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
               it("add new vote to poll, updating the option number of votes", async () => {
                   await pollContract.votePoll(0, [0])
 
-                  const voteResult = await pollContract.getMyVoteInPoll(0)
+                  const myVoteResult = await pollContract.getMyVoteInPoll(0)
 
                   const pollResult = await pollContract.getPollById(0)
 
-                  assert.equal(voteResult.voter, deployer.address)
-                  assert.equal(pollResult.votes.length, 1)
+                  const pollVotes = pollResult[2]
 
-                  const firstPollOptions = await pollContract.getPollOptions(0)
+                  assert.equal(myVoteResult.voter, deployer.address)
+                  assert.equal(pollVotes, 1)
+
+                  const firstPollOptions = (await pollContract.getPollById(0))[1]
 
                   assert.equal(firstPollOptions[0].numberOfVotes, 1)
                   assert.equal(firstPollOptions[1].numberOfVotes, firstPollOptions[2].numberOfVotes, 0)
@@ -175,20 +177,39 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
                   ]
                   await pollContract.createPoll(...newPoll1)
               })
-              it("add new vote to poll, updating the option number of votes", async () => {
+              it("add new votes to poll, updating the option number of votes", async () => {
                   await pollContract.votePoll(0, [0, 1])
 
-                  const voteResult = await pollContract.getMyVoteInPoll(0)
+                  const signers = await ethers.getSigners()
+
+                  const contractConnectedTo3 = (await ethers.getContractAt("PollContract", pollAddress)).connect(
+                      signers[3]
+                  )
+                  const contractConnectedTo4 = (await ethers.getContractAt("PollContract", pollAddress)).connect(
+                      signers[4]
+                  )
+                  const contractConnectedTo5 = (await ethers.getContractAt("PollContract", pollAddress)).connect(
+                      signers[5]
+                  )
+
+                  await contractConnectedTo3.votePoll(0, [2])
+                  await contractConnectedTo4.votePoll(0, [1])
+                  await contractConnectedTo5.votePoll(0, [0, 1])
+
+                  const myVoteResult = await pollContract.getMyVoteInPoll(0)
 
                   const pollResult = await pollContract.getPollById(0)
 
-                  assert.equal(voteResult.voter, deployer.address)
-                  assert.equal(pollResult.votes.length, 1)
+                  const pollVotes = pollResult[2]
 
-                  const firstPollOptions = await pollContract.getPollOptions(0)
+                  assert.equal(myVoteResult.voter, deployer.address)
+                  assert.equal(pollVotes, 4)
 
-                  assert.equal(firstPollOptions[0].numberOfVotes, firstPollOptions[1].numberOfVotes, 1)
-                  assert.equal(firstPollOptions[2].numberOfVotes, 0)
+                  const firstPollOptions = pollResult[1]
+
+                  assert.equal(firstPollOptions[0].numberOfVotes, 2)
+                  assert.equal(firstPollOptions[1].numberOfVotes, 3)
+                  assert.equal(firstPollOptions[2].numberOfVotes, 1)
               })
           })
       })
