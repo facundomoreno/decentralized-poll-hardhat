@@ -9,11 +9,6 @@ error PollContract_PollIsOpen();
 error PollContract_WrongAmountOfOptionsProvided();
 
 contract PollContract {
-    // enum PollStatus {
-    //     OPEN,
-    //     CLOSED
-    // }
-
     struct Option {
         uint256 optionId;
         uint256 pollId;
@@ -36,7 +31,6 @@ contract PollContract {
         uint256 closesAt;
         address creator;
         uint256 numberOfOptions;
-        // PollStatus status;
         Vote[] votes;
     }
 
@@ -48,17 +42,14 @@ contract PollContract {
     // poll id and then option id
     mapping(uint256 => mapping(uint256 => Option)) private pollOptions;
 
-    // poll id and then the winner options
-    // mapping(uint256 => Option[]) private winnerOptions;
-
     constructor() {}
 
     function createPoll(
-        string memory _name,
-        string memory _description,
+        string calldata _name,
+        string calldata _description,
         bool _allowMultipleOptionsSelected,
         uint256 _closesAt,
-        string[] memory _options
+        string[] calldata _options
     ) external payable {
         uint256 aproxCurrentTime = block.timestamp;
         if (_closesAt < aproxCurrentTime) {
@@ -78,7 +69,6 @@ contract PollContract {
         newPoll.createdAt = aproxCurrentTime;
         newPoll.closesAt = _closesAt;
         newPoll.creator = msg.sender;
-        // newPoll.status = PollStatus.OPEN;
 
         newPoll.numberOfOptions = 0;
 
@@ -100,7 +90,7 @@ contract PollContract {
             revert PollContract_AlreadyVotedInPoll();
         }
 
-        if (/* poll.status == PollStatus.CLOSED || */ poll.closesAt < block.timestamp) {
+        if (poll.closesAt < block.timestamp) {
             revert PollContract_PollIsClosed();
         }
 
@@ -123,32 +113,6 @@ contract PollContract {
 
         poll.votes.push(newVote);
     }
-
-    // function closeExpiredPollsAndDetermineWinnerOptions() external payable {
-    //     for (uint256 i = 0; i < pollsCount; i++) {
-    //         if (polls[i].status == PollStatus.OPEN && polls[i].closesAt < block.timestamp) {
-    //             polls[i].status = PollStatus.CLOSED;
-
-    //             // Determine winner
-
-    //             Option[] memory mOptions = getPollOptions(i);
-
-    //             uint256 maxVotes = 0;
-
-    //             for (uint256 y = 0; y < mOptions.length; y++) {
-    //                 if (mOptions[y].numberOfVotes > maxVotes) {
-    //                     maxVotes = mOptions[y].numberOfVotes;
-    //                 }
-    //             }
-
-    //             for (uint256 y = 0; y < mOptions.length; y++) {
-    //                 if (mOptions[y].numberOfVotes == maxVotes) {
-    //                     winnerOptions[i].push(mOptions[y]);
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
 
     function getPolls() public view returns (Poll[] memory) {
         Poll[] memory mPolls = new Poll[](pollsCount);
@@ -181,13 +145,4 @@ contract PollContract {
     function getMyVoteInPoll(uint256 _pollId) public view returns (Vote memory) {
         return globalVotesByAddress[msg.sender][_pollId];
     }
-
-    // function getPollWinnerOptions(uint256 _pollId) public view returns (Option[] memory) {
-    //     Poll memory poll = polls[_pollId];
-    //     if (poll.status == PollStatus.OPEN || poll.closesAt > block.timestamp) {
-    //         revert PollContract_PollIsOpen();
-    //     }
-
-    //     return winnerOptions[_pollId];
-    // }
 }

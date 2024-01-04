@@ -9,7 +9,15 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY!
 const COINMARKET_API_KEY = process.env.COINMARKET_API_KEY
 
 const config: HardhatUserConfig = {
-    solidity: "0.8.19",
+    solidity: {
+        version: "0.8.19",
+        settings: {
+            optimizer: {
+                enabled: true,
+                runs: 1000
+            }
+        }
+    },
     networks: {
         sepolia: {
             url: SEPOLIA_RPC_URL,
