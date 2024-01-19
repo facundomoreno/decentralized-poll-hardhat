@@ -90,6 +90,69 @@ const { developmentChains, networkConfig } = require("../../helper-hardhat-confi
 
                   assert.equal(pollsCount, 0)
               })
+              it("fails if you send large name", async () => {
+                  let pollsCount
+                  const now = new Date()
+
+                  const threeDaysFromNow = Math.floor(new Date(now.setDate(now.getDate() + 3)).getTime() / 1000)
+                  const newPoll1 = [
+                      "0123456789012345678901234567890123456789012345678901234567890",
+                      "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+                      true,
+                      threeDaysFromNow,
+                      ["Alan", "John"]
+                  ]
+
+                  await expect(pollContract.createPoll(...newPoll1)).to.be.rejectedWith(
+                      "PollContract_CheckStringsLength"
+                  )
+
+                  pollsCount = await pollContract.getPollsCount()
+
+                  assert.equal(pollsCount, 0)
+              })
+              it("fails if you send large description", async () => {
+                  let pollsCount
+                  const now = new Date()
+
+                  const threeDaysFromNow = Math.floor(new Date(now.setDate(now.getDate() + 3)).getTime() / 1000)
+                  const newPoll1 = [
+                      "Quien ganara gran hermano?",
+                      `${"0123456789".repeat(50)}0`,
+                      true,
+                      threeDaysFromNow,
+                      ["Alan", "Juan"]
+                  ]
+
+                  await expect(pollContract.createPoll(...newPoll1)).to.be.rejectedWith(
+                      "PollContract_CheckStringsLength"
+                  )
+
+                  pollsCount = await pollContract.getPollsCount()
+
+                  assert.equal(pollsCount, 0)
+              })
+              it("fails if you send large option", async () => {
+                  let pollsCount
+                  const now = new Date()
+
+                  const threeDaysFromNow = Math.floor(new Date(now.setDate(now.getDate() + 3)).getTime() / 1000)
+                  const newPoll1 = [
+                      "Quien ganara gran hermano?",
+                      "A really cool description",
+                      true,
+                      threeDaysFromNow,
+                      [`${"0123456789".repeat(20)}`, "Alan"]
+                  ]
+
+                  await expect(pollContract.createPoll(...newPoll1)).to.be.rejectedWith(
+                      "PollContract_CheckStringsLength"
+                  )
+
+                  pollsCount = await pollContract.getPollsCount()
+
+                  assert.equal(pollsCount, 0)
+              })
               it("fails if you dont send a closesAt after the aprox current time", async () => {
                   await network.provider.send("evm_increaseTime", [100000000])
                   await network.provider.send("evm_mine", [])

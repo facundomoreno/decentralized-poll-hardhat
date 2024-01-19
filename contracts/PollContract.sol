@@ -2,6 +2,7 @@
 pragma solidity >=0.8.2 <0.9.0;
 
 error PollContract_NotEnoughOptionsProvided();
+error PollContract_CheckStringsLength();
 error PollContract_NeededBiggerClosesAtDate(uint256 receivedTime, uint256 blockTimestamp);
 error PollContract_AlreadyVotedInPoll();
 error PollContract_PollIsClosed();
@@ -59,6 +60,11 @@ contract PollContract {
         string[] calldata _options
     ) external payable {
         uint256 aproxCurrentTime = block.timestamp;
+        bytes memory nameToBytes = bytes(_name);
+        bytes memory descriptionToBytes = bytes(_description);
+        if (nameToBytes.length > 60 || descriptionToBytes.length > 500) {
+            revert PollContract_CheckStringsLength();
+        }
         if (_closesAt < aproxCurrentTime) {
             revert PollContract_NeededBiggerClosesAtDate(_closesAt, aproxCurrentTime);
         }
@@ -80,6 +86,10 @@ contract PollContract {
         newPoll.numberOfOptions = 0;
 
         for (uint256 i = 0; i < _options.length; i++) {
+            bytes memory optionNameToBytes = bytes(_options[i]);
+            if (optionNameToBytes.length > 60) {
+                revert PollContract_CheckStringsLength();
+            }
             pollOptions[newPollId][i] = Option(i, newPollId, 0, _options[i]);
             newPoll.numberOfOptions++;
         }
@@ -129,9 +139,9 @@ contract PollContract {
 
     function getPolls() public view returns (Poll[] memory) {
         Poll[] memory mPolls = new Poll[](pollsCount);
-        for (uint256 i = 0; i < pollsCount; i++) {
-            Poll storage sPoll = polls[i];
-            mPolls[i] = sPoll;
+        for (uint256 i = pollsCount; i > 0; i--) {
+            Poll storage sPoll = polls[i - 1];
+            mPolls[i - 1] = sPoll;
         }
 
         return mPolls;

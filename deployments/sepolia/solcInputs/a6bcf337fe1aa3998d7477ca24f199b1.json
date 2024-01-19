@@ -1,0 +1,35 @@
+{
+  "language": "Solidity",
+  "sources": {
+    "contracts/PollContract.sol": {
+      "content": "// SPDX-License-Identifier: UNLICENSED\r\npragma solidity >=0.8.2 <0.9.0;\r\n\r\nerror PollContract_NotEnoughOptionsProvided();\r\nerror PollContract_CheckStringsLength();\r\nerror PollContract_NeededBiggerClosesAtDate(uint256 receivedTime, uint256 blockTimestamp);\r\nerror PollContract_AlreadyVotedInPoll();\r\nerror PollContract_PollIsClosed();\r\nerror PollContract_PollIsOpen();\r\nerror PollContract_WrongAmountOfOptionsProvided();\r\n\r\ncontract PollContract {\r\n    struct Option {\r\n        uint256 optionId;\r\n        uint256 pollId;\r\n        uint256 numberOfVotes;\r\n        string name;\r\n    }\r\n\r\n    struct Vote {\r\n        uint256 voteId;\r\n        uint256 pollId;\r\n        address voter;\r\n        Option[] optionsVoted;\r\n    }\r\n\r\n    struct Poll {\r\n        uint256 id;\r\n        string name;\r\n        string description;\r\n        bool allowMultipleOptionsSelected;\r\n        uint256 createdAt;\r\n        uint256 closesAt;\r\n        address creator;\r\n        uint256 numberOfOptions;\r\n    }\r\n\r\n    event PollCreated(Poll pollCreated);\r\n    event NewVoteInPoll(Vote newVote);\r\n\r\n    uint256 private pollsCount;\r\n    // poll id\r\n    mapping(uint256 => Poll) private polls;\r\n    //address (voter) => pollId\r\n    mapping(address => mapping(uint256 => Vote)) private globalVotesByAddress;\r\n    // poll id => option id\r\n    mapping(uint256 => mapping(uint256 => Option)) private pollOptions;\r\n    // poll id => voteId\r\n    mapping(uint256 => mapping(uint256 => Vote)) private pollVotes;\r\n    // poll id\r\n    mapping(uint256 => uint256) amountOfVotesInPoll;\r\n\r\n    constructor() {}\r\n\r\n    function createPoll(\r\n        string calldata _name,\r\n        string calldata _description,\r\n        bool _allowMultipleOptionsSelected,\r\n        uint256 _closesAt,\r\n        string[] calldata _options\r\n    ) external payable {\r\n        uint256 aproxCurrentTime = block.timestamp;\r\n        bytes memory nameToBytes = bytes(_name);\r\n        bytes memory descriptionToBytes = bytes(_description);\r\n        if (nameToBytes.length > 60 || descriptionToBytes.length > 500) {\r\n            revert PollContract_CheckStringsLength();\r\n        }\r\n        if (_closesAt < aproxCurrentTime) {\r\n            revert PollContract_NeededBiggerClosesAtDate(_closesAt, aproxCurrentTime);\r\n        }\r\n        if (_options.length < 2) {\r\n            revert PollContract_NotEnoughOptionsProvided();\r\n        }\r\n\r\n        uint256 newPollId = pollsCount;\r\n        Poll storage newPoll = polls[newPollId];\r\n\r\n        newPoll.id = newPollId;\r\n        newPoll.name = _name;\r\n        newPoll.description = _description;\r\n        newPoll.allowMultipleOptionsSelected = _allowMultipleOptionsSelected;\r\n        newPoll.createdAt = aproxCurrentTime;\r\n        newPoll.closesAt = _closesAt;\r\n        newPoll.creator = msg.sender;\r\n\r\n        newPoll.numberOfOptions = 0;\r\n\r\n        for (uint256 i = 0; i < _options.length; i++) {\r\n            bytes memory optionNameToBytes = bytes(_options[i]);\r\n            if (optionNameToBytes.length > 60) {\r\n                revert PollContract_CheckStringsLength();\r\n            }\r\n            pollOptions[newPollId][i] = Option(i, newPollId, 0, _options[i]);\r\n            newPoll.numberOfOptions++;\r\n        }\r\n\r\n        pollsCount++;\r\n\r\n        emit PollCreated(newPoll);\r\n    }\r\n\r\n    function votePoll(uint256 _pollId, uint256[] calldata optionsVotedIds) external payable {\r\n        // checking that sender did not already vote in poll\r\n\r\n        Poll storage poll = polls[_pollId];\r\n        address addressForCheck = globalVotesByAddress[msg.sender][_pollId].voter;\r\n\r\n        if (addressForCheck != address(0)) {\r\n            revert PollContract_AlreadyVotedInPoll();\r\n        }\r\n\r\n        if (poll.closesAt < block.timestamp) {\r\n            revert PollContract_PollIsClosed();\r\n        }\r\n\r\n        if (\r\n            ((poll.allowMultipleOptionsSelected == false) && optionsVotedIds.length > 1) || (optionsVotedIds.length < 1)\r\n        ) {\r\n            revert PollContract_WrongAmountOfOptionsProvided();\r\n        }\r\n\r\n        Vote storage newVote = globalVotesByAddress[msg.sender][_pollId];\r\n\r\n        for (uint256 i = 0; i < optionsVotedIds.length; i++) {\r\n            Option storage optionVoted = pollOptions[_pollId][optionsVotedIds[i]];\r\n            newVote.optionsVoted.push(optionVoted);\r\n            optionVoted.numberOfVotes++;\r\n        }\r\n\r\n        newVote.pollId = _pollId;\r\n        newVote.voter = msg.sender;\r\n\r\n        pollVotes[_pollId][amountOfVotesInPoll[_pollId]] = newVote;\r\n\r\n        amountOfVotesInPoll[_pollId]++;\r\n\r\n        emit NewVoteInPoll(newVote);\r\n    }\r\n\r\n    function getPolls() public view returns (Poll[] memory) {\r\n        Poll[] memory mPolls = new Poll[](pollsCount);\r\n        for (uint256 i = pollsCount; i > 0; i--) {\r\n            Poll storage sPoll = polls[i - 1];\r\n            mPolls[i - 1] = sPoll;\r\n        }\r\n\r\n        return mPolls;\r\n    }\r\n\r\n    function getPollById(uint256 _pollId) public view returns (Poll memory, Option[] memory, uint256) {\r\n        Option[] memory mOptions = new Option[](polls[_pollId].numberOfOptions);\r\n\r\n        uint256 votesCount = amountOfVotesInPoll[_pollId];\r\n\r\n        for (uint256 i = 0; i < polls[_pollId].numberOfOptions; i++) {\r\n            Option storage sOption = pollOptions[_pollId][i];\r\n            mOptions[i] = sOption;\r\n        }\r\n        return (polls[_pollId], mOptions, votesCount);\r\n    }\r\n\r\n    function getPollsCount() public view returns (uint256) {\r\n        return pollsCount;\r\n    }\r\n\r\n    function getMyVoteInPoll(uint256 _pollId) public view returns (Vote memory) {\r\n        return globalVotesByAddress[msg.sender][_pollId];\r\n    }\r\n\r\n    function getPollVotes(uint256 _pollId) public view returns (Vote[] memory) {\r\n        uint256 votesCount = amountOfVotesInPoll[_pollId];\r\n        Vote[] memory mVotes = new Vote[](votesCount);\r\n        for (uint256 i = 0; i < votesCount; i++) {\r\n            mVotes[i] = pollVotes[_pollId][i];\r\n        }\r\n        return mVotes;\r\n    }\r\n}\r\n"
+    }
+  },
+  "settings": {
+    "optimizer": {
+      "enabled": true,
+      "runs": 1000
+    },
+    "outputSelection": {
+      "*": {
+        "*": [
+          "abi",
+          "evm.bytecode",
+          "evm.deployedBytecode",
+          "evm.methodIdentifiers",
+          "metadata",
+          "devdoc",
+          "userdoc",
+          "storageLayout",
+          "evm.gasEstimates"
+        ],
+        "": [
+          "ast"
+        ]
+      }
+    },
+    "metadata": {
+      "useLiteralContent": true
+    }
+  }
+}
