@@ -7,6 +7,7 @@ dotenv.config()
 const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL
 const PRIVATE_KEY = process.env.PRIVATE_KEY!
 const COINMARKET_API_KEY = process.env.COINMARKET_API_KEY
+const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY
 
 const config: HardhatUserConfig = {
     solidity: {
@@ -20,7 +21,7 @@ const config: HardhatUserConfig = {
     },
     etherscan: {
         apiKey: {
-            sepolia: "K28VG6375TK92PKXEAW5Y7JBMUFYBSYSJE"
+            sepolia: ETHERSCAN_API_KEY!
         }
     },
     networks: {
